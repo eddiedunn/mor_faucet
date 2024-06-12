@@ -3,7 +3,6 @@
 
 pragma solidity ^0.8.19;
 
-import "hardhat/console.sol";
 
 interface IERC20 {
     function transfer(address to, uint256 amount) external returns (bool);
@@ -17,8 +16,8 @@ contract Faucet {
     address payable owner;
     IERC20 public token;
 
-    uint256 public withdrawalAmount = 1 * (10**18);
-    uint256 public lockTime = 1 minutes;
+    uint256 public withdrawalAmount = 10 * (10**18);
+    uint256 public lockTime = 1440 minutes;
 
     event Withdrawal(address indexed to, uint256 indexed amount);
     event Deposit(address indexed from, uint256 indexed amount);
