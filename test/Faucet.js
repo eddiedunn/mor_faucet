@@ -6,6 +6,8 @@ const { time } = require("@nomicfoundation/hardhat-network-helpers");
 
 const day = 86400
 
+const dailyDrip = 10
+
 const tokens = (n) => {
   return ethers.utils.parseUnits(n.toString(), 'ether')
 }
@@ -52,7 +54,7 @@ describe('Faucet', () => {
         populateAmount = tokens(1000)
         transaction = await token.transfer(faucet.address, populateAmount);
         result = await transaction.wait()
-        dripAmount = tokens(1)
+        dripAmount = tokens(dailyDrip)
         transaction = await faucet.connect(receiver).requestTokens()
         result = await transaction.wait()
       })
@@ -79,7 +81,7 @@ describe('Faucet', () => {
         populateAmount = tokens(1000)
         transaction = await token.transfer(faucet.address, populateAmount);
         result = await transaction.wait()
-        dripAmount = tokens(1)
+        dripAmount = tokens(dailyDrip)
         transaction = await faucet.connect(receiver).requestTokens()
         result = await transaction.wait()
       })
@@ -95,10 +97,10 @@ describe('Faucet', () => {
         populateAmount = tokens(1000)
         transaction = await token.transfer(faucet.address, populateAmount);
         result = await transaction.wait()
-        doubleDripAmount = tokens(2) // 2 times drip
+        doubleDripAmount = tokens(2*dailyDrip) // 2 times drip
         transaction = await faucet.connect(receiver).requestTokens()
         result = await transaction.wait()
-        await time.increase(3600);
+        await time.increase(3600*25); // 25 hours in seconds
         transaction = await faucet.connect(receiver).requestTokens()
         result = await transaction.wait()
       })

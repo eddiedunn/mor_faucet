@@ -4,17 +4,11 @@
 pragma solidity ^0.8.19;
 
 
-interface IERC20 {
-    function transfer(address to, uint256 amount) external returns (bool);
-
-    function balanceOf(address account) external view returns (uint256);
-
-    event Transfer(address indexed from, address indexed to, uint256 value);
-}
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract Faucet {
     address payable owner;
-    IERC20 public token;
+    ERC20 public token;
 
     uint256 public withdrawalAmount = 10 * (10**18);
     uint256 public lockTime = 1440 minutes;
@@ -25,7 +19,7 @@ contract Faucet {
     mapping(address => uint256) nextAccessTime;
 
     constructor(address tokenAddress) payable {
-        token = IERC20(tokenAddress);
+        token = ERC20(tokenAddress);
         owner = payable(msg.sender);
     }
 
