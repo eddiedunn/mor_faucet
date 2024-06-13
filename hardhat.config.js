@@ -5,6 +5,12 @@ const privateKeys = process.env.PRIVATE_KEYS || ""
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: "0.8.20",
+  settings: {
+    optimizer: {
+      enabled: true,
+      runs: 200,
+    },
+  },
   networks: {
     localhost: {},
     arbitrumSepolia: {
