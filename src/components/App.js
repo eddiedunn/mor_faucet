@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import '@walletconnect/react-native-compat'
+import { Web3Wallet } from '@walletconnect/web3wallet';
+import { Core } from '@walletconnect/core'
 import { ethers } from 'ethers';
 import './App.css';
 import logo from '../logo.jpg';
@@ -7,47 +10,56 @@ import config from '../config.json';
 import History from './History';
 import { Link } from 'react-router-dom';
 
-
 function App() {
   const [provider, setProvider] = useState(null);
   const [account, setAccount] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [chainId, setChainId] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const connectWallet = async () => {
-    try {
-      if (window.ethereum) {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        setAccount(accounts[0]);
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        setProvider(provider);
-        const network = await provider.getNetwork();
-        setChainId(network.chainId);
-      } else {
-        alert('No Ethereum wallet detected. Install MetaMask!');
+  const initWallet = async () => {
+    const core = new Core({
+      projectId: process.env.REACT_APP_WALLECT_CONNECT_PROJECT_ID
+    })
+    const web3wallet = await Web3Wallet.init({
+      core,
+      metadata: {
+        name: "sMOR faucet"
       }
-    } catch (error) {
-      console.error('Failed to connect wallet', error);
-    }
-  };
+    });
 
-  const disconnectWallet = () => {
-    setAccount(null);
-    setProvider(null);
-    setChainId(null);
-    console.log('Wallet disconnected');
+    web3wallet.on('session_proposal', async (proposal) => {
+      const session = await web3wallet.approveSession({
+        id: proposal.id,
+        namespaces: proposal.namespaces
+      });
+      const ethersProvider = new ethers.providers.Web3Provider(web3wallet.provider);
+      setProvider(ethersProvider);
+      const accounts = await ethersProvider.listAccounts();
+      const network = await ethersProvider.getNetwork();
+      setAccount(accounts[0]);
+      setChainId(network.chainId);
+    });
+
+    web3wallet.on('disconnect', () => {
+      console.log('Wallet disconnected');
+      setProvider(null);
+      setAccount(null);
+      setChainId(null);
+    });
   };
 
   const requestTokens = async () => {
+    if (!provider) {
+      setErrorMessage('Wallet not connected.');
+      return;
+    }
     try {
-      console.log('Requesting tokens...');
       const signer = provider.getSigner();
       const faucet = new ethers.Contract(config[chainId].faucet.address, FAUCET_ABI, signer);
       const tx = await faucet.requestTokens();
       await tx.wait();
       console.log('Tokens requested successfully!');
-      setErrorMessage(''); // Clear any previous error messages
+      setErrorMessage('');
     } catch (error) {
       console.error('Error requesting tokens:', error);
       const errorText = error.message;
@@ -59,78 +71,14 @@ function App() {
     }
   };
 
-  const loadBlockchainData = async () => {
-    try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      setProvider(provider);
-      const network = await provider.getNetwork();
-      setChainId(network.chainId);
-      await connectWallet();
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error loading blockchain data:', error);
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (isLoading) {
-      loadBlockchainData();
-    }
-  }, [isLoading]);
-
-  useEffect(() => {
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts) => {
-        console.log('Account changed:', accounts[0]);
-        setAccount(accounts[0]);
-      });
-
-      window.ethereum.on('chainChanged', async () => {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        setProvider(provider);
-        const network = await provider.getNetwork();
-        setChainId(network.chainId);
-        setIsLoading(true);
-      });
-    }
-
-    window.addEventListener('beforeunload', disconnectWallet);
-
-    return () => {
-      window.removeEventListener('beforeunload', disconnectWallet);
-      if (window.ethereum) {
-        window.ethereum.removeListener('accountsChanged', () => {});
-        window.ethereum.removeListener('chainChanged', () => {});
-      }
-    };
+    initWallet();
   }, []);
-
-  useEffect(() => {
-    const checkAccountAndChain = async () => {
-      if (window.ethereum) {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const accounts = await provider.listAccounts();
-        if (accounts[0] !== account) {
-          setAccount(accounts[0]);
-          console.log('Account changed:', accounts[0]);
-        }
-        const network = await provider.getNetwork();
-        if (network.chainId !== chainId) {
-          setChainId(network.chainId);
-          setIsLoading(true);
-        }
-      }
-    };
-
-    const interval = setInterval(checkAccountAndChain, 1000);
-    return () => clearInterval(interval);
-  }, [account, chainId]);
 
   return (
     <div className="App">
       <header>
-        <button className="connect-wallet" onClick={connectWallet}>
+        <button onClick={initWallet} className="connect-wallet">
           {account ? `Connected: ${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect Wallet'}
         </button>
       </header>
@@ -148,7 +96,7 @@ function App() {
         <Link to="/faucet-links" className="faucet-links">
           Arbitrum Sepolia Faucet Links
         </Link>
-        {/* {account && <History walletAddress={String(account)} apiKey={process.env.REACT_APP_ALCHEMY_API_KEY} />} */}
+         {/* {account && <History walletAddress={String(account)} apiKey={process.env.REACT_APP_ALCHEMY_API_KEY} />} */}
       </div>
     </div>
   );
