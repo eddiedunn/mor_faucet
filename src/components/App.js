@@ -7,7 +7,6 @@ import config from '../config.json';
 import History from './History';
 import { Link } from 'react-router-dom';
 
-
 function App() {
   const [provider, setProvider] = useState(null);
   const [account, setAccount] = useState(null);
@@ -59,40 +58,48 @@ function App() {
     }
   };
 
-  const loadBlockchainData = async () => {
-    try {
+  const setupProvider = async () => {
+    if (window.ethereum) {
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       setProvider(provider);
       const network = await provider.getNetwork();
       setChainId(network.chainId);
-      await connectWallet();
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error loading blockchain data:', error);
-      setIsLoading(false);
+      const accounts = await provider.listAccounts();
+      setAccount(accounts[0]);
+      return accounts;
     }
   };
 
   useEffect(() => {
+    const initialize = async () => {
+      await setupProvider();
+      setIsLoading(false);
+    };
     if (isLoading) {
-      loadBlockchainData();
+      initialize();
     }
   }, [isLoading]);
 
   useEffect(() => {
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts) => {
-        console.log('Account changed:', accounts[0]);
-        setAccount(accounts[0]);
-      });
+    const handleAccountsChanged = async (accounts) => {
+      if (accounts.length > 0) {
+        if (accounts[0] !== account) {
+          await connectWallet();
+        }
+      } else {
+        disconnectWallet();
+      }
+      console.log('Account changed:', accounts[0]);
+    };
 
-      window.ethereum.on('chainChanged', async () => {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        setProvider(provider);
-        const network = await provider.getNetwork();
-        setChainId(network.chainId);
-        setIsLoading(true);
-      });
+    const handleChainChanged = async () => {
+      await setupProvider();
+      setIsLoading(true);
+    };
+
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
     }
 
     window.addEventListener('beforeunload', disconnectWallet);
@@ -100,30 +107,20 @@ function App() {
     return () => {
       window.removeEventListener('beforeunload', disconnectWallet);
       if (window.ethereum) {
-        window.ethereum.removeListener('accountsChanged', () => {});
-        window.ethereum.removeListener('chainChanged', () => {});
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
       }
     };
-  }, []);
+  }, [account]);
 
   useEffect(() => {
-    const checkAccountAndChain = async () => {
-      if (window.ethereum) {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const accounts = await provider.listAccounts();
-        if (accounts[0] !== account) {
-          setAccount(accounts[0]);
-          console.log('Account changed:', accounts[0]);
-        }
-        const network = await provider.getNetwork();
-        if (network.chainId !== chainId) {
-          setChainId(network.chainId);
-          setIsLoading(true);
-        }
+    const interval = setInterval(async () => {
+      const accounts = await setupProvider();
+      if (accounts && accounts[0] !== account) {
+        setAccount(accounts[0]);
+        console.log('Account changed:', accounts[0]);
       }
-    };
-
-    const interval = setInterval(checkAccountAndChain, 1000);
+    }, 1000);
     return () => clearInterval(interval);
   }, [account, chainId]);
 
