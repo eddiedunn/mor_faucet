@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import './index.css';
 import App from './components/App';
 import History from './components/History';
-import FaucetLinks from './components/FaucetLinks'; // Make sure the path is correct
+import FaucetLinks from './components/FaucetLinks'; 
 import reportWebVitals from './reportWebVitals';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

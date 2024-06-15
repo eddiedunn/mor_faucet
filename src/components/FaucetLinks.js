@@ -1,5 +1,5 @@
 import React from 'react';
-import './App.css'; // Or a separate CSS file if you prefer
+import './App.css'; 
 import logo from '../logo.jpg';
 
 const FaucetLinks = () => {
